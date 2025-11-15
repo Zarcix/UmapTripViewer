@@ -8,11 +8,13 @@ from photo_handler.photo_metadata_handler import PhotoMetadataHandler
 
 photoHandler = PhotoMetadataHandler()
 
+
 def natural_sort(l):
     # Stolen from https://stackoverflow.com/questions/4836710/is-there-a-built-in-function-for-string-natural-sort
     convert = lambda text: int(text) if text.isdigit() else text.lower()
-    alphanum_key = lambda key: [convert(c) for c in re.split('([0-9]+)', key)]
+    alphanum_key = lambda key: [convert(c) for c in re.split("([0-9]+)", key)]
     return sorted(l, key=alphanum_key)
+
 
 def args():
     parser = argparse.ArgumentParser()
@@ -20,6 +22,7 @@ def args():
     args = parser.parse_args()
     assert args.directory
     return args.directory
+
 
 def get_files_by_folder(root_dir):
     result = {}
@@ -41,6 +44,7 @@ def get_files_by_folder(root_dir):
 
     return result
 
+
 def main():
     directory = args()
     folder_files = get_files_by_folder(directory)
@@ -52,8 +56,8 @@ def main():
 
     genericMap = folium.Map([0, 0], min_zoom=3, zoom_start=3)
 
-
     genericMap.show_in_browser()
+
 
 if __name__ == "__main__":
     main()

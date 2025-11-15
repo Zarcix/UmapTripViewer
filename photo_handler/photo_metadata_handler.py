@@ -5,13 +5,16 @@ import exiftool
 
 et = exiftool.ExifToolHelper()
 
-class PhotoMetadataHandler():
+
+class PhotoMetadataHandler:
     def __init__(self):
         pass
 
     def grab_metadata(self, files):
         def __parse_metadata(metadata):
-            dt = metadata.get("EXIF:DateTimeOriginal") or metadata.get("QuickTime:CreateDate")
+            dt = metadata.get("EXIF:DateTimeOriginal") or metadata.get(
+                "QuickTime:CreateDate"
+            )
             ofs = metadata.get("EXIF:OffsetTimeDigitized") or "+00:00"
 
             # Skip invalid EXIF cases
@@ -34,10 +37,11 @@ class PhotoMetadataHandler():
         metadatas = et.get_metadata(files)
         with ThreadPoolExecutor(max_workers=8) as executor:
             metadatas = list(executor.map(__parse_metadata, metadatas))
-        
+
         metadatas = sorted(
             metadatas,
-            key=lambda m: m.get("ParsedDate") or datetime.min.replace(tzinfo=timezone.utc)
+            key=lambda m: m.get("ParsedDate")
+            or datetime.min.replace(tzinfo=timezone.utc),
         )
 
         filtered = [
