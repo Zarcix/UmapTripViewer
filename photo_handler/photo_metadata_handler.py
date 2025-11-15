@@ -1,16 +1,24 @@
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
+from dataclasses import dataclass
 
 import exiftool
 
 et = exiftool.ExifToolHelper()
 
 
+@dataclass
+class Metadata:
+    ParsedDate: str
+    GPS: list[float, float]
+    Path: str
+
+
 class PhotoMetadataHandler:
     def __init__(self):
         pass
 
-    def grab_metadata(self, files):
+    def grab_metadata(self, files) -> list[Metadata]:
         def __parse_metadata(metadata):
             dt = metadata.get("EXIF:DateTimeOriginal") or metadata.get(
                 "QuickTime:CreateDate"
@@ -45,11 +53,16 @@ class PhotoMetadataHandler:
         )
 
         filtered = [
-            {
-                "ParsedDate": m.get("ParsedDate"),
-                "GPS": m.get("Composite:GPSPosition") or "0.0000 0.0000",
-                "Path": m.get("SourceFile"),
-            }
+            Metadata(
+                ParsedDate=m.get("ParsedDate"),
+                GPS=list(
+                    map(
+                        float,
+                        (m.get("Composite:GPSPosition") or "0.0000 0.0000").split(" "),
+                    )
+                ),
+                Path=m.get("SourceFile"),
+            )
             for m in metadatas
         ]
 
