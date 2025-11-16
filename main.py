@@ -2,8 +2,8 @@ from photo_handler.photo_metadata_handler import PhotoMetadataHandler, Metadata
 from folium.plugins import BeautifyIcon
 from collections import defaultdict
 
-import argparse
 import os
+import webbrowser
 import re
 import folium
 import tkinter
@@ -67,10 +67,11 @@ def main():
         metadata_by_folder[folder] = photoHandler.grab_metadata(files)
 
     generic_map = folium.Map([0, 0], min_zoom=3, zoom_start=3)
-    # generic_group = folium.FeatureGroup("All Days", show=False).add_to(generic_map)
 
+    folder_count = 0
     for folder, file_metadata in metadata_by_folder.items():
         folder_group = folium.FeatureGroup(folder, show=False).add_to(generic_map)
+        folder_count += 1
 
         # Group all GPS coordinates together first while preserving date order
         gps_groups = defaultdict(list)
@@ -82,14 +83,15 @@ def main():
         # Create Popups based on GPS coords
         for coords, metadatas in gps_groups.items():
             html = (
-                f"<div style='min-width: 15vw;'>"
-                f"<h1>Long Lat: {coords}</h1>"
-                f"<h1>Images in this location:</h1>"
-                f"</div>"
+                f"<div style='max-height: 15vw; overflow: scroll'>"
+                f"  <div style='min-width: 15vw;'>"
+                f"      <h1>Long Lat: {coords}</h1>"
+                f"      <h1>Images in this location:</h1>"
+                f"  </div>"
             )
             for index, metadata in metadatas:
                 # We'll let the browser handle rendering the pictures instead of loading them all here
-                html += f"<details><summary style='font-size: 1.5em; font-weight: bold'>Index {index}</summary>"
+                html += f"<details><summary style='font-size: 1.5em; font-weight: bold'>Picture Number {index}</summary>"
                 file_extension = metadata.Path.lower().rsplit(".", 1)[-1]
                 html += f"<div><a href='{metadata.Path}' target='_blank'>File Location</a></div>"
                 if ext := VIDEO_MIME_TYPES.get(file_extension):
@@ -97,6 +99,7 @@ def main():
                 else:
                     html += f"<img src='{metadata.Path}' style='max-height: 15vw; max-width: 10vw; object-fit: contain;'></details>"
                 html += "\n"
+            html += "</div>"
             marker_builder[coords].append(
                 folium.Popup(html, max_width="500%", lazy=True)
             )
@@ -117,13 +120,30 @@ def main():
             marker_builder[coords].append(", ".join(ranges))
 
         for coord, marker_info in marker_builder.items():
-            folium.Marker(coord, popup=marker_info[0], tooltip=marker_info[1]).add_to(
-                folder_group
+            icon_number = BeautifyIcon(
+                border_color="#00ABDC",
+                text_color="#00ABDC",
+                number=folder_count,
+                inner_icon_style="margin-top:0;",
             )
+            folium.Marker(
+                coord, popup=marker_info[0], icon=icon_number, tooltip=marker_info[1]
+            ).add_to(folder_group)
 
     folium.LayerControl().add_to(generic_map)
 
-    generic_map.show_in_browser()
+    file_path = filedialog.asksaveasfilename(
+        title="Save Map As",
+        defaultextension=".html",
+        filetypes=[("HTML files", "*.html")],
+    )
+
+    if not file_path:
+        print("Save Cancelled")
+        return
+
+    generic_map.save(file_path)
+    webbrowser.open(f"file://{os.path.abspath(file_path)}", new=2)
 
 
 if __name__ == "__main__":
