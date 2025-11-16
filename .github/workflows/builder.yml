@@ -7,6 +7,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
+
     steps:
       # Step 1: Checkout the repo
       - name: Checkout repository
@@ -25,16 +26,24 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
-      # Step 4: Build the executable
-      - name: Build executable
+      # Step 4a: Build Windows executable (PowerShell)
+      - name: Build Windows executable
+        if: runner.os == 'Windows'
+        shell: pwsh
         run: |
-          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            pyinstaller --onefile main.py --name main.exe
-          elif [[ "${{ matrix.os }}" == "macos-latest" ]]; then
-            pyinstaller --onefile --windowed main.py
-          else
-            pyinstaller --onefile main.py
-          fi
+          pyinstaller --onefile main.py --name main.exe
+
+      # Step 4b: Build macOS executable
+      - name: Build macOS executable
+        if: runner.os == 'macOS'
+        run: |
+          pyinstaller --onefile --windowed main.py
+
+      # Step 4c: Build Linux executable
+      - name: Build Linux executable
+        if: runner.os == 'Linux'
+        run: |
+          pyinstaller --onefile main.py
 
       # Step 5: Upload artifact
       - name: Upload executable
