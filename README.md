@@ -1,3 +1,3 @@
-# UMAP Based Trip Viewer
+# Trip Viewer
 
-This Trip Viewer shows a trip using UMAP Open Street Maps
+This Trip Viewer takes in data from pictures and it's folders and adds markers to OpenStreetMaps to show where you've gone in the photos.
