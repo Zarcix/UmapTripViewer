@@ -3,7 +3,10 @@ on: [push]
 
 jobs:
   Build-Program:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
       # Step 1: Checkout the repo
       - name: Checkout repository
@@ -13,23 +16,30 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.13'  # or whichever version you need
+          python-version: '3.13'
 
-      # Step 3: Create virtual environment and install dependencies
+      # Step 3: Install dependencies
       - name: Install dependencies
         run: |
           pip install --upgrade pip
           pip install -r requirements.txt
           pip install pyinstaller
 
-      # Step 4: Build the executable with PyInstaller
+      # Step 4: Build the executable
       - name: Build executable
         run: |
-          pyinstaller --onefile main.py
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            pyinstaller --onefile main.py --name main.exe
+          elif [[ "${{ matrix.os }}" == "macos-latest" ]]; then
+            pyinstaller --onefile --windowed main.py
+          else
+            pyinstaller --onefile main.py
+          fi
 
-      # Step 5: Upload the built executable as an artifact
+      # Step 5: Upload artifact
       - name: Upload executable
         uses: actions/upload-artifact@v4
         with:
-          name: built-main
-          path: dist/main
+          name: built-main-${{ matrix.os }}
+          path: |
+            dist/main*
