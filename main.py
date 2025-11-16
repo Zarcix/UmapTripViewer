@@ -6,8 +6,22 @@ import argparse
 import os
 import re
 import folium
+import tkinter
+from tkinter import filedialog
 
 photoHandler = PhotoMetadataHandler()
+
+VIDEO_MIME_TYPES = {
+    "mp4": "video/mp4",
+    "mov": "video/quicktime",
+    "mkv": "video/x-matroska",
+    "webm": "video/webm",
+    "avi": "video/x-msvideo",
+    "flv": "video/x-flv",
+    "wmv": "video/x-ms-wmv",
+    "m4v": "video/x-m4v",
+    "mpeg": "video/mpeg",
+}
 
 
 def natural_sort(l):
@@ -17,12 +31,11 @@ def natural_sort(l):
     return sorted(l, key=alphanum_key)
 
 
-def args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("directory", help="A folder to all the files")
-    args = parser.parse_args()
-    assert args.directory
-    return args.directory
+def folder_picker():
+    root = tkinter.Tk()
+    root.withdraw()
+    file_path = filedialog.askdirectory()
+    return file_path
 
 
 def get_files_by_folder(root_dir):
@@ -47,37 +60,66 @@ def get_files_by_folder(root_dir):
 
 
 def main():
-    directory = args()
+    directory = folder_picker()
     folder_files = get_files_by_folder(directory)
     metadata_by_folder: dict[str, list[Metadata]] = {}
     for folder, files in folder_files.items():
         metadata_by_folder[folder] = photoHandler.grab_metadata(files)
 
     generic_map = folium.Map([0, 0], min_zoom=3, zoom_start=3)
-    generic_group = folium.FeatureGroup("All Days", show=False).add_to(generic_map)
+    # generic_group = folium.FeatureGroup("All Days", show=False).add_to(generic_map)
 
     for folder, file_metadata in metadata_by_folder.items():
         folder_group = folium.FeatureGroup(folder, show=False).add_to(generic_map)
 
-        # Group all GPS coordinates together first
+        # Group all GPS coordinates together first while preserving date order
         gps_groups = defaultdict(list)
         for idx, metadata in enumerate(file_metadata):
             gps_groups[tuple(metadata.GPS)].append((idx, metadata))
 
-        # Create markers based on the GPS groups
-        photo_counter = 0
-        for metadata in file_metadata:
-            photoIcon = BeautifyIcon(
-                border_color="#00ABDC",
-                text_color="#00ABDC",
-                number=photo_counter,
-                inner_icon_style="margin-top:0;",
+        marker_builder = defaultdict(list)
+
+        # Create Popups based on GPS coords
+        for coords, metadatas in gps_groups.items():
+            html = (
+                f"<div style='min-width: 15vw;'>"
+                f"<h1>Long Lat: {coords}</h1>"
+                f"<h1>Images in this location:</h1>"
+                f"</div>"
             )
-            folium.Marker(metadata.GPS, popup=metadata.Path, icon=photoIcon).add_to(
+            for index, metadata in metadatas:
+                # We'll let the browser handle rendering the pictures instead of loading them all here
+                html += f"<details><summary style='font-size: 1.5em; font-weight: bold'>Index {index}</summary>"
+                file_extension = metadata.Path.lower().rsplit(".", 1)[-1]
+                html += f"<div><a href='{metadata.Path}' target='_blank'>File Location</a></div>"
+                if ext := VIDEO_MIME_TYPES.get(file_extension):
+                    html += f"<video controls style='max-height: 15vw; max-width: 10vw; object-fit: contain;'><source src='{metadata.Path}' type='{ext}'></video>"
+                else:
+                    html += f"<img src='{metadata.Path}' style='max-height: 15vw; max-width: 10vw; object-fit: contain;'></details>"
+                html += "\n"
+            marker_builder[coords].append(
+                folium.Popup(html, max_width="500%", lazy=True)
+            )
+
+        # Create Icons based on GPS coords
+        for coords, metadatas in gps_groups.items():
+            ranges = []
+            indexes = [m[0] for m in metadatas]
+            start = prev = indexes[0]
+
+            for n in indexes[1:]:
+                if n != prev + 1:
+                    ranges.append(f"{start}-{prev}" if start != prev else str(start))
+                    start = n
+                prev = n
+
+            ranges.append(f"{start}-{prev}" if start != prev else str(start))
+            marker_builder[coords].append(", ".join(ranges))
+
+        for coord, marker_info in marker_builder.items():
+            folium.Marker(coord, popup=marker_info[0], tooltip=marker_info[1]).add_to(
                 folder_group
             )
-            folium.Marker(metadata.GPS, popup=metadata.Path).add_to(generic_group)
-            photo_counter += 1
 
     folium.LayerControl().add_to(generic_map)
 

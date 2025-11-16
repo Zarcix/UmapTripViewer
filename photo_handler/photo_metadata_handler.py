@@ -3,8 +3,7 @@ from datetime import datetime, timezone
 from dataclasses import dataclass
 
 import exiftool
-
-et = exiftool.ExifToolHelper()
+import os
 
 
 @dataclass
@@ -19,6 +18,8 @@ class PhotoMetadataHandler:
         pass
 
     def grab_metadata(self, files) -> list[Metadata]:
+        et = exiftool.ExifToolHelper()
+
         def __parse_metadata(metadata):
             dt = metadata.get("EXIF:DateTimeOriginal") or metadata.get(
                 "QuickTime:CreateDate"
@@ -43,7 +44,7 @@ class PhotoMetadataHandler:
             return metadata
 
         metadatas = et.get_metadata(files)
-        with ThreadPoolExecutor(max_workers=8) as executor:
+        with ThreadPoolExecutor(max_workers=os.cpu_count()) as executor:
             metadatas = list(executor.map(__parse_metadata, metadatas))
 
         metadatas = sorted(
